@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
     maintain_mtab = 1;
     iocharset = NULL;
     
-    char c;
+    signed char c;
     while((c = getopt(argc, argv, "+npc:h")) > 0) {
         switch(c) {
             case 'n':
