@@ -58,7 +58,9 @@ static char *mount_point = NULL;
 static int image_fd = -1;
 
 int maintain_mount_point;
+#if 0
 int maintain_mtab;
+#endif
 char* iocharset;
 
 char* normalize_name(const char* fname) {
@@ -91,18 +93,19 @@ void del_mount_point() {
         perror("Can`t delete mount point");
     };
 };
-
+#if 0
 char* get_mtab_path() {
     char* mtab_path = (char*) malloc(PATH_MAX);
     uid_t uid = getuid();
     struct passwd* passwd = getpwuid(uid);
     if(!passwd) {
         fprintf(stderr, "Can`t get home directory for user %d: %s\n", uid, strerror(errno));
+        // LEAK
         return NULL;
     };
     mtab_path[0] = 0;
     if(passwd->pw_dir) { // may be NULL, who know..
-        strncpy(mtab_path, passwd->pw_dir, PATH_MAX - 16);
+        strncpy(mtab_path, passwd->pw_dir, PATH_MAX - 16); // magic numbers
         mtab_path[PATH_MAX - 1] = 0;
     };
     strcat(mtab_path, "/.mtab.fuseiso");
@@ -115,19 +118,23 @@ int add_mtab_record() {
     if(!mtab_path) {
         return -EIO;
     };
+    // mtab_path is allocated, must be freed in all branches!!!
     int fd = open(mtab_path, O_RDWR | O_CREAT, 0644);
     if(fd < 0) {
         perror("Can`t open mtab");
+        // LEAK
         return -EIO;
     };
     rc = lockf(fd, F_LOCK, 0);
     if(rc != 0) {
         perror("Can`t lock mtab");
+        // LEAK
         return -EIO;
     };
     FILE* mtab = setmntent(mtab_path, "a");
     if(!mtab) {
         perror("Can`t open mtab");
+        // LEAK
         return -EIO;
     };
     struct mntent ent;
@@ -140,15 +147,18 @@ int add_mtab_record() {
     rc = addmntent(mtab, &ent);
     if(rc != 0) {
         perror("Can`t add mtab entry");
+        // LEAK
         return -EIO;
     };
     endmntent(mtab);
     rc = lockf(fd, F_ULOCK, 0);
     if(rc != 0) {
         perror("Can`t unlock mtab");
+        // LEAK
         return -EIO;
     };
     close(fd);
+    // WOW, NO LEAK XD
     free(mtab_path);
     return 0;
 };
@@ -213,6 +223,7 @@ int del_mtab_record() {
     free(mtab_path);
     return 0;
 };
+#endif
 
 static int isofs_getattr(const char *path, struct stat *stbuf)
 {
@@ -240,19 +251,23 @@ static int isofs_flush(const char *UNUSED(path), struct fuse_file_info *UNUSED(f
 
 static void* isofs_init() {
     int rc;
+#if 0
     if(maintain_mtab) {
         rc = add_mtab_record();
         if(rc != 0) {
             exit(EXIT_FAILURE);
         };
     };
+#endif
     return isofs_real_init();
 };
 
 static void isofs_destroy(void* param) {
+#if 0
     if(maintain_mtab) {
         del_mtab_record();
     };
+#endif
     return;
 };
 
@@ -286,7 +301,9 @@ static struct fuse_operations isofs_oper = {
 void usage(const char* prog) {
     printf("Version: %s\nUsage: %s [-n] [-p] [-c <iocharset>] [-h] <isofs_image_file> <mount_point> [<FUSE library options>]\n"
         "Where options are:\n"
+#if 0
         "    -n                 -- do NOT maintain file $HOME/.mtab.fuseiso\n"
+#endif
         "    -p                 -- maintain mount point; \n"
         "                          create it if it does not exists and delete it on exit\n"
         "    -c <iocharset>     -- specify iocharset for Joliet filesystem\n"
@@ -306,15 +323,19 @@ int main(int argc, char *argv[])
     
     // defaults
     maintain_mount_point = 0;
+#if 0
     maintain_mtab = 1;
+#endif
     iocharset = NULL;
     
     signed char c;
-    while((c = getopt(argc, argv, "+npc:h")) > 0) {
+    while((c = getopt(argc, argv, "+pc:h")) > 0) {
         switch(c) {
+#if 0
             case 'n':
                 maintain_mtab = 0;
                 break;
+#endif
             case 'p':
                 maintain_mount_point = 1;
                 break;
