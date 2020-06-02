@@ -29,7 +29,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
+#ifndef NO_ZLIB
 #include <zlib.h>
+#endif
 #include <dirent.h>
 #include <pthread.h>
 #include <sys/statfs.h>
@@ -1606,6 +1608,9 @@ int isofs_real_open(const char *path) {
 };
 
 static int isofs_real_read_zf(isofs_inode *inode, char *out_buf, size_t size, off_t offset) {
+#ifdef NO_ZLIB
+    return -EIO;
+#else
     if( inode->zf_block_shift > 17 ) {
         fprintf(stderr, "isofs_real_read_zf: can't handle ZF block size of 2^%d\n", inode->zf_block_shift);
         return -EIO;
@@ -1729,6 +1734,7 @@ static int isofs_real_read_zf(isofs_inode *inode, char *out_buf, size_t size, of
 //     printf("total size %d\n", total_size);
     
     return total_size;
+#endif
 };
 
 int isofs_real_read(const char *path, char *out_buf, size_t size, off_t offset) {
