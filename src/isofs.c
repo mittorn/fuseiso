@@ -1783,7 +1783,7 @@ int isofs_real_read(const char *path, char *out_buf, size_t size, off_t offset) 
     if(offset + size > fsize) {
         size = fsize - offset;
     };
-    if(size < 1) {
+    if(size < 1 || size > INT_MAX / 2) { // sometimes fuse requests 4GB blocks, maybe it's negative value or debian bug
         return 0;
     };
     
@@ -1823,7 +1823,7 @@ int isofs_real_read(const char *path, char *out_buf, size_t size, off_t offset) 
         };
         
         total_size += len;
-        
+        //printf("%s %u %d %d %d\n", path, size, count, len, shift);
         memcpy(out_buf + count * context.data_size, buf + shift, len - shift);
         
         count++;
